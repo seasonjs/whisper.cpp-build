@@ -6,6 +6,7 @@ endif()
 
 set(WHISPER_GIT_TAG  ffdb5c4735a2410dbc209c180199890966895ce6)
 set(WHISPER_GIT_URL  https://github.com/ggerganov/whisper.cpp)
+set(BUILD_SHARED_LIBS OFF)
 
 FetchContent_Declare(
   whisper
@@ -14,3 +15,15 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(whisper)
+include_directories(${whisper_SOURCE_DIR})
+
+target_compile_definitions(whisper PUBLIC
+        WHISPER_SHARED
+        GGML_SHARED
+)
+target_compile_definitions(whisper PRIVATE
+        WHISPER_BUILD
+        GGML_BUILD
+)
+
+set_target_properties(whisper PROPERTIES POSITION_INDEPENDENT_CODE ON)

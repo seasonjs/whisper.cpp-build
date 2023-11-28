@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.14)
 project("whisper-build")
 
 
@@ -24,9 +24,15 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 include(whisper)
 include_directories(${whisper_SOURCE_DIR})
 
+include(dr_libs)
+include_directories(${dr_libs_SOURCE_DIR})
+
 set(WHISPER_ABI whisper-abi)
-add_library(${WHISPER_ABI} SHARED whisper_abi.cpp whisper_abi.h)
-set_target_properties(${WHISPER_ABI} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_compile_definitions(${WHISPER_ABI} PUBLIC WHISPER_SHARED WHISPER_BUILD ${WHISPER_EXTRA_FLAGS})
-target_link_libraries(${WHISPER_ABI} PUBLIC $<TARGET_OBJECTS:whisper> ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+add_library(${WHISPER_ABI} SHARED whisper_abi.cpp whisper_abi.h ${dr_libs_SOURCE_DIR}/dr_wav.h)
+
 target_include_directories(${WHISPER_ABI} PUBLIC .)
+
+set_target_properties(${WHISPER_ABI} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(${WHISPER_ABI} PUBLIC WHISPER_SHARED WHISPER_BUILD)
+target_link_libraries(${WHISPER_ABI} PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
+
