@@ -1,38 +1,74 @@
-cmake_minimum_required(VERSION 3.14)
-project("whisper-build")
+cmake_minimum_required(VERSION 3.12)
 
+project("llama.cpp-build")
+
+include(FetchContent)
+include(./cmake/fetch_prebuilt_ggml.cmake)
+
+set(
+    WHISPER_SOURCE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/whisper-src"
+    CACHE PATH
+    "Optional local whisper source tree. When present it is preferred over downloading whisper."
+)
+
+set(GGML_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/ggml" CACHE PATH "Path to an unpacked ggml SDK")
+set(GGML_RELEASE_BASE_URL "https://github.com/seasonjs/ggml.cpp-build/releases/download" CACHE STRING "Base release URL, for example https://github.com/seasonjs/ggml.cpp-build/releases/download")
+set(GGML_RELEASE_TAG "v0.9.8" CACHE STRING "Release tag containing the prebuilt ggml SDK archives")
+
+# add dependencies
+get_filename_component(_whisper_local_source_dir "${WHISPER_SOURCE_DIR}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (NOT XCODE AND NOT MSVC AND NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif ()
+# Ensure non-empty build number for whisper.cpp versioning
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(WHISPER_UPSTREAM_TAG "v1.8.4" CACHE STRING "Default whisper build number" FORCE)
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED true)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+# Strategy: ggml dynamic + whisper static
+# Note: We'll use BUILD_SHARED_LIBS=ON to build both as shared initially,
+# but whisper.cpp's CMake allows us to use ggml as dynamic
 
-include(whisper)
-include_directories(${whisper_SOURCE_DIR})
+# Important: Build shared libraries initially (ggml + whisper)
+set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libs" FORCE)
+set(WHISPER_USE_SYSTEM_GGML ON CACHE BOOL "Use system ggml" FORCE)
 
-include(dr_libs)
-include_directories(${dr_libs_SOURCE_DIR})
+message("check WHISPER_UPSTREAM_TAG ${WHISPER_UPSTREAM_TAG}")
 
-set(WHISPER_ABI whisper-abi)
-add_library(${WHISPER_ABI} SHARED whisper_abi.cpp whisper_abi.h ${dr_libs_SOURCE_DIR}/dr_wav.h)
+add_compile_definitions(GGML_MAX_NAME=128)
 
-target_include_directories(${WHISPER_ABI} PUBLIC .)
+if (EXISTS "${GGML_ROOT_DIR}")
+    ggml_import_prebuilt(
+        ROOT_DIR "${GGML_ROOT_DIR}"
+        OUT_ROOT_DIR GGML_PACKAGE_ROOT
+    )
+elseif (GGML_RELEASE_BASE_URL)
+    ggml_import_prebuilt(
+        RELEASE_BASE_URL "${GGML_RELEASE_BASE_URL}"
+        RELEASE_TAG "${GGML_RELEASE_TAG}"
+        OUT_ROOT_DIR GGML_PACKAGE_ROOT
+    )
+else()
+    message(FATAL_ERROR
+        "Set GGML_ROOT_DIR to an unpacked ggml SDK or provide GGML_RELEASE_BASE_URL so CMake can download one.")
+endif()
 
-set_target_properties(${WHISPER_ABI} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_compile_definitions(${WHISPER_ABI} PUBLIC WHISPER_SHARED WHISPER_BUILD)
-target_link_libraries(${WHISPER_ABI} PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
+if (EXISTS "${_whisper_local_source_dir}/CMakeLists.txt")
+    message(STATUS "Using local whisper source tree: ${_whisper_local_source_dir}")
+    add_subdirectory("${_whisper_local_source_dir}" "${CMAKE_BINARY_DIR}/whisper")
+else()
+    message(STATUS "Fetching whisper.cpp ${WHISPER_UPSTREAM_TAG} from GitHub")
+    FetchContent_Declare(
+        whisper
+        GIT_REPOSITORY https://github.com/ggml-org/whisper.cpp.git
+        GIT_TAG        ${WHISPER_UPSTREAM_TAG}
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(whisper)
+endif()
 
+# We don't need to copy ggml's runtime binaries to the output directory
+# ggml_copy_runtime_binaries(main_app
+#     ROOT_DIR "${GGML_PACKAGE_ROOT}"
+# )
