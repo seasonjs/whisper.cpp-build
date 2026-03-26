@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project("llama.cpp-build")
+project("whisper.cpp-build")
 
 include(FetchContent)
 include(./cmake/fetch_prebuilt_ggml.cmake)
