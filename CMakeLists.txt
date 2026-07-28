@@ -14,7 +14,7 @@ set(
 
 set(GGML_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/ggml" CACHE PATH "Path to an unpacked ggml SDK")
 set(GGML_RELEASE_BASE_URL "https://github.com/seasonjs/ggml.cpp-build/releases/download" CACHE STRING "Base release URL, for example https://github.com/seasonjs/ggml.cpp-build/releases/download")
-set(GGML_RELEASE_TAG "v0.14.0" CACHE STRING "Release tag containing the prebuilt ggml SDK archives")
+set(GGML_RELEASE_TAG "v0.17.0" CACHE STRING "Release tag containing the prebuilt ggml SDK archives")
 
 # add dependencies
 get_filename_component(_whisper_local_source_dir "${WHISPER_SOURCE_DIR}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -23,7 +23,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Ensure non-empty build number for whisper.cpp versioning
 
-set(WHISPER_UPSTREAM_TAG "v1.8.6" CACHE STRING "Default whisper build number" FORCE)
+set(WHISPER_UPSTREAM_TAG "v1.9.1" CACHE STRING "Default whisper build number" FORCE)
 
 
 # Strategy: ggml dynamic + whisper static
